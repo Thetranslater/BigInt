@@ -82,6 +82,32 @@ void BigInt::swap(BigInt& in) {
 	_end = mid_end;
 }
 
+void BigInt::fft(std::vector<std::complex<double>>& ply, bool is_inverse) {
+	double pi = 3.141592653589793238462643383279502884e+00;
+	int n = ply.size();
+	if (n == 1) {
+		return;
+	}
+	int mid = n / 2;
+	std::vector<std::complex<double>> f1(mid, std::complex<double>());
+	std::vector<std::complex<double>> f2(mid, std::complex<double>());
+	for (int i = 0; i < mid; ++i) {
+		f1[i] = ply[2 * i];
+		f2[i] = ply[2 * i + 1];
+	}
+	fft(f1, is_inverse);
+	fft(f2, is_inverse);
+	std::complex<double> w0(1, 0), wn(std::cos((2 * pi) / n), (is_inverse ? -1 : 1) * std::sin((2 * pi) / n));
+	for (int i = 0; i < mid; ++i, w0 *= wn) {
+		ply[i] = f1[i] + w0 * f2[i];
+		ply[i + mid] = f1[i] - w0 * f2[i];
+	}
+}
+
+bool BigInt::sign() const {
+	return !isNaN() && *_digits != '-';
+}
+
 //operators
 API BigInt BigInt::operator-() const {
 	if (!isNaN()) {
@@ -224,4 +250,54 @@ API bool operator==(const BigInt& l, const BigInt& r) {
 
 API bool operator>=(const BigInt& l, const BigInt& r) {
 	return l == r && l > r;
+}
+
+//fft o(nlogn)
+API BigInt operator*(const BigInt& l, const BigInt& r) {
+	if (!l.isNaN() && !r.isNaN()) {
+		uint32_t lsz{ l.digits10() }, rsz{ r.digits10() };
+		uint32_t pow2sz{ 1u << std::max((uint32_t)std::ceil(std::log2(lsz + rsz)),1u) };
+
+		std::vector<std::complex<double>> lply(pow2sz, std::complex<double>());
+		std::vector<std::complex<double>> rply(pow2sz, std::complex<double>());
+
+		for (int i = 0; i < lsz; ++i) {
+			lply[i].real(*(l._end - 1 - i) - '0');
+		}
+		for (int i = 0; i < rsz; ++i) {
+			rply[i].real(*(r._end - 1 - i) - '0');
+		}
+		BigInt::fft(lply, false);
+		BigInt::fft(rply, false);
+		for (int i = 0; i < pow2sz; ++i) {
+			lply[i] = lply[i] * rply[i];
+		}
+		BigInt::fft(lply, true);
+		for (int i = 0; i < pow2sz; ++i) {
+			lply[i]._Val[0] = (lply[i]._Val[0] / pow2sz) + 1e-8;
+		}
+		//进位
+		int carry{ 0 };
+		for (int i = 0; i < pow2sz; ++i) {
+			int basic = (int)lply[i]._Val[0] + carry;
+			lply[i]._Val[0] = basic % 10;
+			carry = basic / 10;
+		}
+		//除去前导0
+		uint32_t start{ pow2sz - 1 };
+		while (start >= 0 && lply[start].real() < 1) {
+			--start;
+		}
+		//符号
+		bool sign{ l.sign() == r.sign() };
+		//构造结果
+		std::string multi_res(start + 1, '\0');
+		for (int i = 0; i < start + 1; ++i) {
+			multi_res[i] = lply[start - i].real() + '0';
+		}
+		BigInt ret(multi_res);
+		if (!sign) - ret;
+		return ret;
+	}
+	return BigInt();
 }

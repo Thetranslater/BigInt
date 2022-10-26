@@ -2,7 +2,9 @@
 
 #define API
 
-#define API
+#include<vector>
+#include<complex>
+#include<string>
 
 class __declspec(dllexport) BigInt {
 public:
@@ -36,6 +38,8 @@ private:
 	int digits10() const;
 	bool isValidString(const std::string& str) const;
 	void swap(BigInt& in);
+	bool sign() const;
+	static void fft(std::vector<std::complex<double>>& ply, bool is_inverse);
 private:
 	char* _digits{ nullptr };
 	char* _end{ nullptr };
