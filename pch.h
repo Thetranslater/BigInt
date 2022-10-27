@@ -13,5 +13,6 @@
 #include<limits>
 #include<vector>
 #include<complex>
+#include<string_view>
 
 #endif //PCH_H

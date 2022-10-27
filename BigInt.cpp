@@ -10,37 +10,58 @@ API BigInt::BigInt(const BigInt& in) {
 	_digits = new char[sz];
 	_end = _digits + sz;
 	memcpy((void*)_digits, (const void*)in._digits, sz);
+	_sign = in._sign;
 }
 
 API BigInt::BigInt(BigInt&& in) {
 	_digits = in._digits;
 	_end = in._end;
+	_sign = in._sign;
 	in._digits = nullptr;
 	in._end = nullptr;
 }
 
 API BigInt::BigInt(const std::string& str_in) {
 	if (isValidString(str_in)) {
-		_digits = new char[str_in.size()];
-		_end = _digits + str_in.size();
-		memcpy((void*)_digits, (const void*)str_in.data(), str_in.size());
+		int alloc_sz = str_in.size();
+		if (str_in.front() == '-') {
+			--alloc_sz;
+			_sign = false;
+		}
+		_digits = new char[alloc_sz];
+		_end = _digits + alloc_sz;
+		memcpy((void*)_digits, (const void*)(str_in.data() + !_sign), alloc_sz);
+	}
+}
+
+API BigInt::BigInt(const std::string_view& str_v) {
+	if (isValidString(str_v)) {
+		int alloc_sz = str_v.size();
+		if (str_v[0] == '-') {
+			--alloc_sz;
+			_sign = false;
+		}
+		_digits = new char[alloc_sz];
+		_end = _digits + alloc_sz;
+		memcpy((void*)_digits, (const void*)(str_v.data() + !_sign), alloc_sz);
 	}
 }
 
 API BigInt::BigInt(const char* cstr_in) {
 	if (isValidString(std::string(cstr_in))) {
 		auto len = strlen(cstr_in);
+		if (*cstr_in == '-') {
+			--len;
+			_sign = false;
+		}
 		_digits = new char[len];
 		_end = _digits + len;
-		memcpy((void*)_digits, (const void*)cstr_in, len);
+		memcpy((void*)_digits, (const void*)(cstr_in + !_sign), len);
 	}
 }
 
 API BigInt::~BigInt() {
-	if (_digits != nullptr)
-		delete[] _digits;
-	_digits = nullptr;
-	_end = nullptr;
+	free();
 }
 
 API bool BigInt::isNaN() const {
@@ -49,7 +70,11 @@ API bool BigInt::isNaN() const {
 
 API const std::string BigInt::str() const {
 	if (!isNaN()) {
-		std::string str(_digits, _end - _digits);
+		std::string str;
+		if (!_sign) {
+			str.push_back('-');
+		}
+		str.append(_digits, _end - _digits);
 		str.push_back('\0');
 		str.resize(str.size() - 1);
 		return str;
@@ -57,11 +82,11 @@ API const std::string BigInt::str() const {
 	return std::string();
 }
 
-int BigInt::digits10() const {
-	return _end - _digits - (_digits[0] == '-');
+uint32_t BigInt::digits10() const {
+	return static_cast<uint32_t>(_end - _digits);
 }
 
-bool BigInt::isValidString(const std::string& str) const {
+bool BigInt::isValidString(const std::string_view& str) const {
 	int index{ 0 };
 	if (str[index] == '-') ++index;
 	while (index < str.size()) {
@@ -76,14 +101,24 @@ bool BigInt::isValidString(const std::string& str) const {
 void BigInt::swap(BigInt& in) {
 	char* mid_digit = in._digits;
 	char* mid_end = in._end;
+	bool mid_sign = in._sign;
 	in._digits = _digits;
 	in._end = _end;
+	in._sign = _sign;
 	_digits = mid_digit;
 	_end = mid_end;
+	_sign = mid_sign;
+}
+
+void BigInt::free() {
+	if (!isNaN()) delete[] _digits;
+	_digits = nullptr;
+	_end = nullptr;
+	_sign = true;
 }
 
 void BigInt::fft(std::vector<std::complex<double>>& ply, bool is_inverse) {
-	double pi = 3.141592653589793238462643383279502884e+00;
+	auto pi = 3.141592653589793238462643383279502884e+00;
 	int n = ply.size();
 	if (n == 1) {
 		return;
@@ -105,46 +140,27 @@ void BigInt::fft(std::vector<std::complex<double>>& ply, bool is_inverse) {
 }
 
 bool BigInt::sign() const {
-	return !isNaN() && *_digits != '-';
+	return !isNaN() && _sign;
 }
 
 //operators
 API BigInt BigInt::operator-() const {
 	if (!isNaN()) {
-		int redress{ _digits[0] != '-' };
-		int digits = digits10() + redress;
-		std::string neg;
-		neg.resize(digits);
-		int index{ 0 };
-		if (*_digits != '-') {
-			neg[index++] = '-';
-		}
-		while (index < neg.size()) {
-			neg[index] = _digits[index + (redress ? -1 : 1)];
-			++index;
-		}
-		return BigInt(neg);
+		BigInt rev(*this);
+		rev._sign = !_sign;
+		return rev;
 	}
 	return BigInt();
 }
 
 API BigInt& BigInt::operator-() {
-	if (!isNaN()) {
-		if (*_digits == '-') {
-			++_digits;
-			return *this;
-		}
-		const BigInt* cbig = this;
-		BigInt temp{ cbig->operator-() };
-		temp.swap(*this);
-		return *this;
-	}
+	_sign = !_sign;
 	return *this;
 }
 
 API BigInt operator+(const BigInt& l, const BigInt& r) {
 	if (!l.isNaN() && !r.isNaN()) {
-		if (l._digits[0] != '-' && r._digits[0] != '-') {
+		if (l.sign() && r.sign()) {
 			// all positive
 			int l_len = l._end - l._digits;
 			int r_len = r._end - r._digits;
@@ -170,7 +186,7 @@ API BigInt operator+(const BigInt& l, const BigInt& r) {
 			delete[] res;
 			return ret;
 		}
-		else if (l._digits[0] == '-' && r._digits[0] == '-') {
+		else if (!l.sign() && !r.sign()) {
 			// all negtive
 			return -((-l) + (-r));
 		}
@@ -186,13 +202,50 @@ API BigInt operator+(const BigInt& l, const BigInt& r) {
 }
 //TODO:
 API BigInt operator-(const BigInt& l, const BigInt& r) {
+	if (!l.isNaN() && !r.isNaN()) {
+		std::string sres(std::max(l.digits10(), r.digits10()), '\0');
+		int index = sres.size() - 1;
+		bool l_sign{ l.sign() }, r_sign{ r.sign() };
+		if (l_sign && r_sign) {
+			if (l > r) {
+				int i = l.digits10() - 1, j = r.digits10() - 1;
+				while (i >= 0) {
+					int lbasic = i < 0 ? 0 : (l._digits[i] - '0');
+					int rbasic = j < 0 ? 0 : (r._digits[j] - '0');
+					int res{ lbasic - rbasic };
+					if (res < 0) {
+						int k{ i - 1 };
+						while (k >= 0 && l._digits[k] == '0') {
+							l._digits[k] = '9';
+							--k;
+						}
+						--l._digits[k];
+						res += 10;
+					}
+					sres[index--] = res + '0';
+					--i, --j;
+				}
+				int n0iter{ 0 };
+				while (sres[n0iter] == '0') ++n0iter;
+				return BigInt(std::string_view(sres.data() + n0iter, sres.size() - n0iter));
+			}
+			else return -(r - l);
+		}
+		else if (l_sign && !r_sign) {
+			return l + (-r);
+		}
+		else if (!l_sign && r_sign) {
+			return -((-l) + r);
+		}
+		return (-r) - (-l);
+	}
 	return BigInt();
 }
 
 API bool operator>(const BigInt& l, const BigInt& r) {
 	if (!l.isNaN() && !r.isNaN()) {
-		bool l_neg{ l._digits[0] == '-' };
-		bool r_neg{ r._digits[0] == '-' };
+		bool l_neg{ !l.sign() };
+		bool r_neg{ !r.sign() };
 		if (l_neg && r_neg) {
 			if (l.digits10() != r.digits10()) {
 				return l.digits10() < r.digits10();
@@ -251,7 +304,6 @@ API bool operator==(const BigInt& l, const BigInt& r) {
 API bool operator>=(const BigInt& l, const BigInt& r) {
 	return l == r && l > r;
 }
-
 //fft o(nlogn)
 API BigInt operator*(const BigInt& l, const BigInt& r) {
 	if (!l.isNaN() && !r.isNaN()) {
@@ -300,4 +352,28 @@ API BigInt operator*(const BigInt& l, const BigInt& r) {
 		return ret;
 	}
 	return BigInt();
+}
+
+API BigInt& BigInt::operator=(const BigInt& in) {
+	free();
+	_sign = in._sign;
+	size_t sz = in.digits10();
+	_digits = new char[sz];
+	_end = _digits + sz;
+	memcpy((void*)_digits, (const void*)in._digits, sz);
+	return *this;
+}
+
+API BigInt& BigInt::operator=(BigInt&& move) {
+	free();
+
+	_digits = move._digits;
+	_end = move._end;
+	_sign = move._sign;
+
+	move._digits = nullptr;
+	move._end = nullptr;
+	move._sign = true;
+
+	return *this;
 }
