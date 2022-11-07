@@ -139,6 +139,24 @@ void BigInt::fft(std::vector<std::complex<double>>& ply, bool is_inverse) {
 	}
 }
 
+BigInt BigInt::multiBySingle(const BigInt& l, const char& single) {
+	if (single == '0') return BigInt(0);
+	std::string res(l.digits10() + 1, 0);
+	auto tail = res.end();
+	int carry{ 0 };
+	for (auto rbegin{ l._end }; rbegin != l._digits; --rbegin) {
+		int l_basic = *(rbegin - 1) - '0';
+		int r_basic = single - '0';
+		*(--tail) = ((l_basic * r_basic + carry) % 10) + '0';
+		carry = (l_basic * r_basic + carry) / 10;
+	}
+	if (carry > 0) {
+		*(--tail) = carry + '0';
+	}
+	std::string_view res_v(tail, res.end());
+	return BigInt(res_v);
+}
+
 bool BigInt::sign() const {
 	return !isNaN() && _sign;
 }
@@ -203,6 +221,7 @@ API BigInt operator+(const BigInt& l, const BigInt& r) {
 //TODO:
 API BigInt operator-(const BigInt& l, const BigInt& r) {
 	if (!l.isNaN() && !r.isNaN()) {
+		BigInt copy{ l };
 		std::string sres(std::max(l.digits10(), r.digits10()), '\0');
 		int index = sres.size() - 1;
 		bool l_sign{ l.sign() }, r_sign{ r.sign() };
@@ -210,16 +229,16 @@ API BigInt operator-(const BigInt& l, const BigInt& r) {
 			if (l > r) {
 				int i = l.digits10() - 1, j = r.digits10() - 1;
 				while (i >= 0) {
-					int lbasic = i < 0 ? 0 : (l._digits[i] - '0');
+					int lbasic = i < 0 ? 0 : (copy._digits[i] - '0');
 					int rbasic = j < 0 ? 0 : (r._digits[j] - '0');
 					int res{ lbasic - rbasic };
 					if (res < 0) {
 						int k{ i - 1 };
-						while (k >= 0 && l._digits[k] == '0') {
-							l._digits[k] = '9';
+						while (k >= 0 && copy._digits[k] == '0') {
+							copy._digits[k] = '9';
 							--k;
 						}
-						--l._digits[k];
+						--copy._digits[k];
 						res += 10;
 					}
 					sres[index--] = res + '0';
@@ -304,10 +323,24 @@ API bool operator==(const BigInt& l, const BigInt& r) {
 API bool operator>=(const BigInt& l, const BigInt& r) {
 	return l == r && l > r;
 }
+
+API bool operator<(const BigInt& l, const BigInt& r) {
+	return !(l > r || l == r);
+}
+
+API bool operator<=(const BigInt& l, const BigInt& r) {
+	return !(l > r);
+}
 //fft o(nlogn)
 API BigInt operator*(const BigInt& l, const BigInt& r) {
 	if (!l.isNaN() && !r.isNaN()) {
 		uint32_t lsz{ l.digits10() }, rsz{ r.digits10() };
+		if (lsz == 1) {
+			return BigInt::multiBySingle(r, *(l._digits));
+		}
+		else if (rsz == 1) {
+			return BigInt::multiBySingle(l, *(r._digits));
+		}
 		uint32_t pow2sz{ 1u << std::max((uint32_t)std::ceil(std::log2(lsz + rsz)),1u) };
 
 		std::vector<std::complex<double>> lply(pow2sz, std::complex<double>());
@@ -349,6 +382,54 @@ API BigInt operator*(const BigInt& l, const BigInt& r) {
 		}
 		BigInt ret(multi_res);
 		if (!sign) - ret;
+		return ret;
+	}
+	return BigInt();
+}
+
+API BigInt operator/(const BigInt& l, const BigInt& r)
+{
+	//大除法
+	if (!l.isNaN() && !r.isNaN()) {
+		auto dig_r{ r.digits10() };
+		auto dig_l{ l.digits10() };
+		std::string quotient;
+		std::string remainder;
+		bool l_sign = l.sign(), r_sign = r.sign();
+
+		uint32_t i{ 0 };
+		for (; i < dig_r - 1; ++i) {
+			if (i >= dig_l) return BigInt(0);
+			remainder.push_back(l._digits[i]);
+		}
+		while (i < dig_l) {
+			remainder.push_back(l._digits[i]);
+			//binary search
+			int left{ 0 }, right{ 9 };
+			while (left < right) {
+				int middle{ right - (right - left) / 2 };
+				auto multi_res = BigInt::multiBySingle(r, middle + '0');
+				if (multi_res > remainder) {
+					right = middle - 1;
+				}
+				else {
+					left = middle;
+				}
+			}
+			quotient.push_back(left + '0');
+
+			auto int_remain = BigInt(remainder) - BigInt::multiBySingle(r, left + '0');
+			remainder = std::string(int_remain);
+			++i;
+		}
+		std::string_view quo_v(quotient.begin() + int(quotient.front() == '0'), quotient.end());
+		BigInt ret = quotient.empty() ? BigInt(0) : BigInt(quo_v);
+		if (!(l_sign ^ r_sign)) {
+			ret._sign = true;
+		}
+		else {
+			ret._sign = false;
+		}
 		return ret;
 	}
 	return BigInt();

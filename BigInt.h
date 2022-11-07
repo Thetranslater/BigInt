@@ -40,13 +40,22 @@ public:
 	API friend bool operator>(const BigInt& l, const BigInt& r);
 	API friend bool operator==(const BigInt& l, const BigInt& r);
 	API friend bool operator>=(const BigInt& l, const BigInt& r);
+	API friend bool operator<(const BigInt& l, const BigInt& r);
+	API friend bool operator<=(const BigInt& l, const BigInt& r);
 
+	API operator std::string() {
+		std::string ret;
+		ret.resize(digits10());
+		memcpy(ret.data(), _digits, digits10());
+		return ret;
+	}
 public:
 	uint32_t digits10() const;
 	bool isValidString(const std::string_view& str) const;
 	void swap(BigInt& in);
 	inline bool sign() const;
 	inline void free();
+	static BigInt multiBySingle(const BigInt& l, const char& single);
 	static void fft(std::vector<std::complex<double>>& ply, bool is_inverse);
 public:
 	char* _digits{ nullptr };
@@ -56,6 +65,11 @@ public:
 
 template<typename Int>
 API BigInt::BigInt(const Int& in) {
+	//check
+	std::enable_if_t<
+		std::disjunction_v<std::is_integral<Int>, std::is_convertible<Int, double>, std::is_convertible<double, Int>>,
+		Int> checkres;
+
 	if constexpr (std::is_integral_v<Int>) {
 		Int copy = in;
 		if (copy == std::numeric_limits<Int>::min()) {
@@ -150,6 +164,11 @@ API BigInt::BigInt(const Int& in) {
 
 template<typename Int>
 API BigInt& BigInt::operator=(const Int& in) {
+	//check
+	std::enable_if_t<
+		std::disjunction_v<std::is_integral<Int>, std::is_convertible<Int, double>, std::is_convertible<double, Int>>,
+		Int> checkres;
+
 	if constexpr (std::is_integral_v<Int>) {
 		free();
 		Int copy = in;
