@@ -1,6 +1,4 @@
 ﻿// BigInt.cpp : 定义静态库的函数。
-//
-
 #include<cstring>
 #include<type_traits>
 #include<string>
@@ -10,7 +8,25 @@
 #include<string_view>
 
 #include"src/BigInt.h"
+#include"src/Util.h"
 
+//friend declear
+API BigInt operator+(const BigInt& l, const BigInt& r);
+API BigInt operator-(const BigInt& l, const BigInt& r);
+API BigInt operator*(const BigInt& l, const BigInt& r);
+API BigInt operator/(const BigInt& l, const BigInt& r);
+API BigInt operator%(const BigInt& l, const BigInt& r);
+
+API bool operator>(const BigInt& l, const BigInt& r);
+API bool operator==(const BigInt& l, const BigInt& r);
+API bool operator>=(const BigInt& l, const BigInt& r);
+API bool operator<(const BigInt& l, const BigInt& r);
+API bool operator<=(const BigInt& l, const BigInt& r);
+
+API std::ostream& operator<<(std::ostream& o, BigInt& bInt);
+API std::istream& operator>>(std::istream& i, BigInt& bInt);
+
+//implementation
 API BigInt::BigInt(const BigInt& in) {
 	size_t sz = in._end - in._digits;
 	_digits = new char[sz];
@@ -72,20 +88,6 @@ API BigInt::~BigInt() {
 
 API bool BigInt::isNaN() const {
 	return _digits == nullptr || _digits == _end;
-}
-
-API const std::string BigInt::str() const {
-	if (!isNaN()) {
-		std::string str;
-		if (!_sign) {
-			str.push_back('-');
-		}
-		str.append(_digits, _end - _digits);
-		str.push_back('\0');
-		str.resize(str.size() - 1);
-		return str;
-	}
-	return std::string();
 }
 
 uint32_t BigInt::digits10() const {
@@ -183,24 +185,24 @@ API BigInt& BigInt::operator-() {
 }
 
 API BigInt& BigInt::operator++() {
-	*this = *this + 1;
+	*this = operator+(*this, 1);
 	return *this;
 }
 
 API BigInt BigInt::operator++(int) {
 	BigInt temp(*this);
-	*this = *this + 1;
+	*this = operator+(*this, 1);
 	return temp;
 }
 
 API BigInt& BigInt::operator--() {
-	*this = *this - 1;
+	*this = ::operator-(*this, 1);
 	return *this;
 }
 
 API BigInt BigInt::operator--(int) {
 	BigInt temp(*this);
-	*this = *this - 1;
+	*this = ::operator-(*this, 1);
 	return temp;
 }
 
@@ -238,7 +240,7 @@ API BigInt operator+(const BigInt& l, const BigInt& r) {
 		}
 		else {
 			// not same sign
-			bool sign{ l >= 0 };
+			bool sign{ operator>=(l,0) };
 			BigInt nature{ sign ? l : r };
 			BigInt negtive{ sign ? r : l };
 			return nature - (-negtive);
@@ -448,7 +450,7 @@ API BigInt operator/(const BigInt& l, const BigInt& r)
 			quotient.push_back(left + '0');
 
 			auto int_remain = BigInt(remainder) - BigInt::multiBySingle(r, left + '0');
-			remainder = std::string(int_remain);
+			remainder = util::to_string(int_remain);
 			++i;
 		}
 		std::string_view quo_v(quotient.begin() + int(quotient.front() == '0'), quotient.end());
@@ -497,7 +499,7 @@ API BigInt& BigInt::operator=(BigInt&& move) {
 }
 
 API std::ostream& operator<<(std::ostream& o, BigInt& bInt) {
-	o << std::string(bInt);
+	o << util::to_string(bInt);
 	return o;
 }
 //TODO:处理浮点缩窄，输入错误的情况
@@ -515,4 +517,22 @@ API std::istream& operator>>(std::istream& i, BigInt& bInt) {
 		bInt._sign = false;
 	}
 	return i;
+}
+
+API BigInt::operator long long() const {
+	long long ll;
+	try {
+		ll = std::stoll(util::to_string(*this));
+	}
+	catch (std::out_of_range& out) {
+		if (_sign) return LLONG_MAX;
+		else return LLONG_MIN;
+	}
+	return ll;
+}
+
+namespace std {
+	std::size_t hash<BigInt>::operator()(const BigInt& bInt) {
+		return hash<std::string>{}(util::to_string(bInt));
+	}
 }

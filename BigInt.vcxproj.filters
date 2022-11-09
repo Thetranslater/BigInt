@@ -14,9 +14,18 @@
     <ClInclude Include="src\BigInt.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="src\Util.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="include\include.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\BigInt.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Util.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>

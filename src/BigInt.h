@@ -5,8 +5,9 @@
 #include<vector>
 #include<complex>
 #include<string>
-
+class util;
 class __declspec(dllexport) BigInt {
+	friend class util;
 public:
 	API BigInt() :_digits{ nullptr }, _end{ nullptr }{}
 	API BigInt(const BigInt& in);
@@ -17,15 +18,18 @@ public:
 	API BigInt(const std::string_view& str_v);
 	API BigInt(char* cstr_in) : BigInt(static_cast<const char*>(cstr_in)) {}
 	API BigInt(const char* cstr_in);
-	template<typename Int>
+	template<typename Int, typename std::enable_if_t<
+		std::disjunction_v<std::is_integral<Int>, std::is_convertible<Int, double>, std::is_convertible<double, Int>>,
+		bool> = true>
 	API BigInt(const Int& in);
 
 	~BigInt();
 
-	API const std::string str() const;
 	API bool isNaN() const;
 
-	template<typename Int>
+	template<typename Int, typename std::enable_if_t<
+		std::disjunction_v<std::is_integral<Int>, std::is_convertible<Int, double>, std::is_convertible<double, Int>>,
+		bool> = true>
 	API BigInt& operator=(const Int& in);
 	API BigInt& operator=(const BigInt& in);
 	API BigInt& operator=(BigInt&& move);
@@ -49,14 +53,7 @@ public:
 	API friend bool operator<(const BigInt& l, const BigInt& r);
 	API friend bool operator<=(const BigInt& l, const BigInt& r);
 
-	API operator std::string() const {
-		std::string ret;
-		ret.resize(digits10() + !_sign);
-		char* start = ret.data() + !_sign;
-		memcpy(start, _digits, digits10());
-		if (!_sign) ret[0] = '-';
-		return ret;
-	}
+	API operator long long() const;
 public:
 	uint32_t digits10() const;
 	bool isValidString(const std::string_view& str) const;
@@ -71,13 +68,8 @@ public:
 	bool _sign{ true };
 };
 
-template<typename Int>
+template<typename Int, typename std::enable_if_t<std::disjunction_v<std::is_integral<Int>, std::is_convertible<Int, double>, std::is_convertible<double, Int>>,bool>>
 API BigInt::BigInt(const Int& in) {
-	//check
-	std::enable_if_t<
-		std::disjunction_v<std::is_integral<Int>, std::is_convertible<Int, double>, std::is_convertible<double, Int>>,
-		Int> checkres;
-
 	if constexpr (std::is_integral_v<Int>) {
 		Int copy = in;
 		if (copy == std::numeric_limits<Int>::min()) {
@@ -93,7 +85,7 @@ API BigInt::BigInt(const Int& in) {
 		}
 		else {
 			copy = std::is_unsigned_v<Int> ? in : (in < 0 ? -in : in);
-			size_t sz{ 0 };
+			size_t sz{ copy == 0 };
 			while (copy > 0) {
 				copy /= 10;
 				++sz;
@@ -102,12 +94,15 @@ API BigInt::BigInt(const Int& in) {
 			_end = _digits + sz;
 			char* p = _end - 1;
 			copy = std::is_unsigned_v<Int> ? in : (in < 0 ? -in : in);
-			while (copy > 0) {
-				*p = '0' + (copy % 10);
-				copy /= 10;
-				--p;
+			if (copy == 0) *_digits = '0';
+			else {
+				while (copy > 0) {
+					*p = '0' + (copy % 10);
+					copy /= 10;
+					--p;
+				}
+				if (in < 0) _sign = false;
 			}
-			if (in < 0) _sign = false;
 		}
 	}
 	else if constexpr (std::is_convertible_v<Int, double> && std::is_convertible_v<double, Int>) {
@@ -170,13 +165,8 @@ API BigInt::BigInt(const Int& in) {
 	}
 }
 
-template<typename Int>
+template<typename Int, typename std::enable_if_t<std::disjunction_v<std::is_integral<Int>, std::is_convertible<Int, double>, std::is_convertible<double, Int>>,bool>>
 API BigInt& BigInt::operator=(const Int& in) {
-	//check
-	std::enable_if_t<
-		std::disjunction_v<std::is_integral<Int>, std::is_convertible<Int, double>, std::is_convertible<double, Int>>,
-		Int> checkres;
-
 	if constexpr (std::is_integral_v<Int>) {
 		free();
 		Int copy = in;
@@ -274,8 +264,6 @@ API BigInt& BigInt::operator=(const Int& in) {
 namespace std {
 	template<>
 	struct hash<BigInt> {
-		std::size_t operator()(const BigInt& bInt) {
-			return hash<std::string>{}(std::string(bInt));
-		}
+		std::size_t operator()(const BigInt& bInt);
 	};
 }
