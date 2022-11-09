@@ -176,6 +176,28 @@ API BigInt& BigInt::operator-() {
 	return *this;
 }
 
+API BigInt& BigInt::operator++() {
+	*this = *this + 1;
+	return *this;
+}
+
+API BigInt BigInt::operator++(int) {
+	BigInt temp(*this);
+	*this = *this + 1;
+	return temp;
+}
+
+API BigInt& BigInt::operator--() {
+	*this = *this - 1;
+	return *this;
+}
+
+API BigInt BigInt::operator--(int) {
+	BigInt temp(*this);
+	*this = *this - 1;
+	return temp;
+}
+
 API BigInt operator+(const BigInt& l, const BigInt& r) {
 	if (!l.isNaN() && !r.isNaN()) {
 		if (l.sign() && r.sign()) {
@@ -244,9 +266,10 @@ API BigInt operator-(const BigInt& l, const BigInt& r) {
 					sres[index--] = res + '0';
 					--i, --j;
 				}
-				int n0iter{ 0 };
-				while (sres[n0iter] == '0') ++n0iter;
-				return BigInt(std::string_view(sres.data() + n0iter, sres.size() - n0iter));
+				auto n0iter{ sres.begin() };
+				while (n0iter + 1 != sres.end() && *n0iter == '0') ++n0iter;
+				int head = n0iter - sres.begin();
+				return BigInt(std::string_view(sres.data() + head, sres.size() - head));
 			}
 			else return -(r - l);
 		}
@@ -321,7 +344,7 @@ API bool operator==(const BigInt& l, const BigInt& r) {
 }
 
 API bool operator>=(const BigInt& l, const BigInt& r) {
-	return l == r && l > r;
+	return l == r || l > r;
 }
 
 API bool operator<(const BigInt& l, const BigInt& r) {
@@ -435,6 +458,14 @@ API BigInt operator/(const BigInt& l, const BigInt& r)
 	return BigInt();
 }
 
+API BigInt operator%(const BigInt& l, const BigInt& r) {
+	if (!l.isNaN() && !r.isNaN()) {
+		BigInt quotient = l / r;
+		BigInt remainder = l - r * quotient;
+		return remainder;
+	}
+}
+
 API BigInt& BigInt::operator=(const BigInt& in) {
 	free();
 	_sign = in._sign;
@@ -457,4 +488,25 @@ API BigInt& BigInt::operator=(BigInt&& move) {
 	move._sign = true;
 
 	return *this;
+}
+
+API std::ostream& operator<<(std::ostream& o, BigInt& bInt) {
+	o << std::string(bInt);
+	return o;
+}
+//TODO:处理浮点缩窄，输入错误的情况
+API std::istream& operator>>(std::istream& i, BigInt& bInt) {
+	std::string data;
+	i >> data;
+	size_t size = data.size();
+	bInt.free();
+	bInt._digits = new char[size];
+	bInt._end = bInt._digits + size;
+	bInt._sign = true;
+	memcpy(bInt._digits, data.data(), size);
+	if (*bInt._digits == '-') {
+		++bInt._digits;
+		bInt._sign = false;
+	}
+	return i;
 }

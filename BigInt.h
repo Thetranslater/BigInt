@@ -32,10 +32,16 @@ public:
 
 	API BigInt operator-() const;
 	API BigInt& operator-();
+	API BigInt& operator++();
+	API BigInt operator++(int);
+	API BigInt& operator--();
+	API BigInt operator--(int);
+
 	API friend BigInt operator+(const BigInt& l, const BigInt& r);
 	API friend BigInt operator-(const BigInt& l, const BigInt& r);
 	API friend BigInt operator*(const BigInt& l, const BigInt& r);
 	API friend BigInt operator/(const BigInt& l, const BigInt& r);
+	API friend BigInt operator%(const BigInt& l, const BigInt& r);
 
 	API friend bool operator>(const BigInt& l, const BigInt& r);
 	API friend bool operator==(const BigInt& l, const BigInt& r);
@@ -43,10 +49,12 @@ public:
 	API friend bool operator<(const BigInt& l, const BigInt& r);
 	API friend bool operator<=(const BigInt& l, const BigInt& r);
 
-	API operator std::string() {
+	API operator std::string() const {
 		std::string ret;
-		ret.resize(digits10());
-		memcpy(ret.data(), _digits, digits10());
+		ret.resize(digits10() + !_sign);
+		char* start = ret.data() + !_sign;
+		memcpy(start, _digits, digits10());
+		if (!_sign) ret[0] = '-';
 		return ret;
 	}
 public:
@@ -261,4 +269,13 @@ API BigInt& BigInt::operator=(const Int& in) {
 			if (fin < 0) _sign = false;
 		}
 	}
+}
+
+namespace std {
+	template<>
+	struct hash<BigInt> {
+		std::size_t operator()(const BigInt& bInt) {
+			return hash<std::string>{}(std::string(bInt));
+		}
+	};
 }
