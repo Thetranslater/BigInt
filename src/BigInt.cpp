@@ -1,9 +1,15 @@
 ﻿// BigInt.cpp : 定义静态库的函数。
 //
 
-#include "pch.h"
+#include<cstring>
+#include<type_traits>
+#include<string>
+#include<limits>
+#include<vector>
+#include<complex>
+#include<string_view>
 
-#include"BigInt.h"
+#include"src/BigInt.h"
 
 API BigInt::BigInt(const BigInt& in) {
 	size_t sz = in._end - in._digits;
@@ -23,7 +29,7 @@ API BigInt::BigInt(BigInt&& in) {
 
 API BigInt::BigInt(const std::string& str_in) {
 	if (isValidString(str_in)) {
-		int alloc_sz = str_in.size();
+		size_t alloc_sz = str_in.size();
 		if (str_in.front() == '-') {
 			--alloc_sz;
 			_sign = false;
@@ -36,7 +42,7 @@ API BigInt::BigInt(const std::string& str_in) {
 
 API BigInt::BigInt(const std::string_view& str_v) {
 	if (isValidString(str_v)) {
-		int alloc_sz = str_v.size();
+		size_t alloc_sz = str_v.size();
 		if (str_v[0] == '-') {
 			--alloc_sz;
 			_sign = false;
@@ -49,7 +55,7 @@ API BigInt::BigInt(const std::string_view& str_v) {
 
 API BigInt::BigInt(const char* cstr_in) {
 	if (isValidString(std::string(cstr_in))) {
-		auto len = strlen(cstr_in);
+		size_t len = strlen(cstr_in);
 		if (*cstr_in == '-') {
 			--len;
 			_sign = false;
@@ -369,10 +375,10 @@ API BigInt operator*(const BigInt& l, const BigInt& r) {
 		std::vector<std::complex<double>> lply(pow2sz, std::complex<double>());
 		std::vector<std::complex<double>> rply(pow2sz, std::complex<double>());
 
-		for (int i = 0; i < lsz; ++i) {
+		for (uint32_t i = 0; i < lsz; ++i) {
 			lply[i].real(*(l._end - 1 - i) - '0');
 		}
-		for (int i = 0; i < rsz; ++i) {
+		for (uint32_t i = 0; i < rsz; ++i) {
 			rply[i].real(*(r._end - 1 - i) - '0');
 		}
 		BigInt::fft(lply, false);
@@ -386,7 +392,7 @@ API BigInt operator*(const BigInt& l, const BigInt& r) {
 		}
 		//进位
 		int carry{ 0 };
-		for (int i = 0; i < pow2sz; ++i) {
+		for (uint32_t i = 0; i < pow2sz; ++i) {
 			int basic = (int)lply[i]._Val[0] + carry;
 			lply[i]._Val[0] = basic % 10;
 			carry = basic / 10;
@@ -400,7 +406,7 @@ API BigInt operator*(const BigInt& l, const BigInt& r) {
 		bool sign{ l.sign() == r.sign() };
 		//构造结果
 		std::string multi_res(start + 1, '\0');
-		for (int i = 0; i < start + 1; ++i) {
+		for (uint32_t i = 0; i < start + 1; ++i) {
 			multi_res[i] = lply[start - i].real() + '0';
 		}
 		BigInt ret(multi_res);
