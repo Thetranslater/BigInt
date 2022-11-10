@@ -161,8 +161,11 @@ BigInt BigInt::multiBySingle(const BigInt& l, const char& single) {
 	if (carry > 0) {
 		*(--tail) = carry + '0';
 	}
-	std::string_view res_v(tail, res.end());
-	return BigInt(res_v);
+	int head = tail - res.begin();
+	std::string_view res_v(res.data() + head, res.size() - head);
+	BigInt ret(res_v);
+	ret._sign = l._sign;
+	return ret;
 }
 
 bool BigInt::sign() const {
@@ -365,12 +368,17 @@ API bool operator<=(const BigInt& l, const BigInt& r) {
 //fft o(nlogn)
 API BigInt operator*(const BigInt& l, const BigInt& r) {
 	if (!l.isNaN() && !r.isNaN()) {
+		BigInt ret;
 		uint32_t lsz{ l.digits10() }, rsz{ r.digits10() };
 		if (lsz == 1) {
-			return BigInt::multiBySingle(r, *(l._digits));
+			ret = BigInt::multiBySingle(r, (*(l._digits)));
+			ret._sign = l._sign == r._sign;
+			return ret;
 		}
 		else if (rsz == 1) {
-			return BigInt::multiBySingle(l, *(r._digits));
+			ret = BigInt::multiBySingle(l, (*(r._digits)));
+			ret._sign = l._sign == r._sign;
+			return ret;
 		}
 		uint32_t pow2sz{ 1u << std::max((uint32_t)std::ceil(std::log2(lsz + rsz)),1u) };
 
@@ -411,7 +419,7 @@ API BigInt operator*(const BigInt& l, const BigInt& r) {
 		for (uint32_t i = 0; i < start + 1; ++i) {
 			multi_res[i] = lply[start - i].real() + '0';
 		}
-		BigInt ret(multi_res);
+		ret = multi_res;
 		if (!sign) - ret;
 		return ret;
 	}
@@ -422,6 +430,9 @@ API BigInt operator/(const BigInt& l, const BigInt& r)
 {
 	//大除法
 	if (!l.isNaN() && !r.isNaN()) {
+		if (r == 0) throw std::exception("divided by zero!");
+		BigInt _r = r < 0 ? -r : r;
+
 		auto dig_r{ r.digits10() };
 		auto dig_l{ l.digits10() };
 		std::string quotient;
@@ -439,7 +450,7 @@ API BigInt operator/(const BigInt& l, const BigInt& r)
 			int left{ 0 }, right{ 9 };
 			while (left < right) {
 				int middle{ right - (right - left) / 2 };
-				auto multi_res = BigInt::multiBySingle(r, middle + '0');
+				auto multi_res = BigInt::multiBySingle(_r, middle + '0');
 				if (multi_res > remainder) {
 					right = middle - 1;
 				}
@@ -449,17 +460,21 @@ API BigInt operator/(const BigInt& l, const BigInt& r)
 			}
 			quotient.push_back(left + '0');
 
-			auto int_remain = BigInt(remainder) - BigInt::multiBySingle(r, left + '0');
+			auto int_remain = BigInt(remainder) - BigInt::multiBySingle(_r, left + '0');
 			remainder = util::to_string(int_remain);
 			++i;
 		}
-		std::string_view quo_v(quotient.begin() + int(quotient.front() == '0'), quotient.end());
-		BigInt ret = quotient.empty() ? BigInt(0) : BigInt(quo_v);
-		if (!(l_sign ^ r_sign)) {
-			ret._sign = true;
-		}
-		else {
-			ret._sign = false;
+		BigInt ret(0);
+		if (!quotient.empty()) {
+			int head = quotient.size() == 1 ? 0 : quotient.front() == '0';
+			std::string_view quo_v(quotient.data() + head, quotient.size() - head);
+			ret = BigInt(quo_v);
+			if (!(l_sign ^ r_sign)) {
+				ret._sign = true;
+			}
+			else {
+				ret._sign = false;
+			}
 		}
 		return ret;
 	}
@@ -529,6 +544,83 @@ API BigInt::operator long long() const {
 		else return LLONG_MIN;
 	}
 	return ll;
+}
+
+API BigInt::operator long() const {
+	long l;
+	try {
+		l = std::stol(util::to_string(*this));
+	}
+	catch (std::out_of_range& out) {
+		if (_sign) return LONG_MAX;
+		else return LONG_MIN;
+	}
+	return l;
+}
+
+API BigInt::operator int() const {
+	int i;
+	try {
+		i = std::stoi(util::to_string(*this));
+	}
+	catch (std::out_of_range& out) {
+		if (_sign) return INT_MAX;
+		else return INT_MIN;
+	}
+	return i;
+}
+
+API BigInt::operator short() const {
+	if (*this > BigInt(SHRT_MAX)) {
+		return SHRT_MAX;
+	}
+	else if (*this < BigInt(SHRT_MIN)) {
+		return SHRT_MIN;
+	}
+	return short(int(*this));
+}
+
+API BigInt::operator char() const {
+	if (*this > BigInt(CHAR_MAX)) {
+		return CHAR_MAX;
+	}
+	else if (*this < BigInt(CHAR_MIN)) {
+		return CHAR_MIN;
+	}
+	return char(int(*this));
+}
+
+API BigInt::operator unsigned long long() const {
+	if (!_sign) return 0;
+	unsigned long long ull;
+	try {
+		ull = std::stoull(util::to_string(*this));
+	}
+	catch (std::out_of_range& out) {
+		return ULLONG_MAX;
+	}
+	return ull;
+}
+
+API BigInt::operator unsigned long() const {
+	if (!_sign) return 0;
+	unsigned long ul;
+	try {
+		ul = std::stoul(util::to_string(*this));
+	}
+	catch (std::out_of_range& out) {
+		return ULLONG_MAX;
+	}
+	return ul;
+}
+
+API BigInt::operator unsigned int() const {
+	if (!_sign) return 0;
+	unsigned int ui;
+	if (*this > BigInt(UINT32_MAX)) {
+		return UINT32_MAX;
+	}
+	return unsigned int(unsigned long(*this));
 }
 
 namespace std {
