@@ -640,7 +640,7 @@ API BigInt::operator unsigned char() const {
 }
 
 namespace std {
-	std::size_t hash<BigInt>::operator()(const BigInt& bInt) {
+	std::size_t hash<BigInt>::operator()(const BigInt& bInt) const {
 		return hash<std::string>{}(util::to_string(bInt));
 	}
 }
