@@ -1,5 +1,5 @@
 #pragma once
-#include<src/BigInt.h>
+#include<src/BigInt_impl.h>
 
 class util {
 public:

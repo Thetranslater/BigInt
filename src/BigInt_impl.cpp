@@ -7,7 +7,7 @@
 #include<complex>
 #include<string_view>
 
-#include"src/BigInt.h"
+#include"src/BigInt_impl.h"
 #include"src/Util.h"
 
 //friend declear
@@ -487,6 +487,7 @@ API BigInt operator%(const BigInt& l, const BigInt& r) {
 		BigInt remainder = l - r * quotient;
 		return remainder;
 	}
+	return BigInt();
 }
 
 API BigInt& BigInt::operator=(const BigInt& in) {
@@ -539,7 +540,7 @@ API BigInt::operator long long() const {
 	try {
 		ll = std::stoll(util::to_string(*this));
 	}
-	catch (std::out_of_range& out) {
+	catch (std::out_of_range&) {
 		if (_sign) return LLONG_MAX;
 		else return LLONG_MIN;
 	}
@@ -551,7 +552,7 @@ API BigInt::operator long() const {
 	try {
 		l = std::stol(util::to_string(*this));
 	}
-	catch (std::out_of_range& out) {
+	catch (std::out_of_range&) {
 		if (_sign) return LONG_MAX;
 		else return LONG_MIN;
 	}
@@ -608,19 +609,34 @@ API BigInt::operator unsigned long() const {
 	try {
 		ul = std::stoul(util::to_string(*this));
 	}
-	catch (std::out_of_range& out) {
-		return ULLONG_MAX;
+	catch (std::out_of_range&) {
+		return ULONG_MAX;
 	}
 	return ul;
 }
 
 API BigInt::operator unsigned int() const {
 	if (!_sign) return 0;
-	unsigned int ui;
 	if (*this > BigInt(UINT32_MAX)) {
 		return UINT32_MAX;
 	}
 	return unsigned int(unsigned long(*this));
+}
+
+API BigInt::operator unsigned short() const {
+	if (!_sign) return 0;
+	if (*this > BigInt(USHRT_MAX)) {
+		return USHRT_MAX;
+	}
+	return unsigned short(unsigned long(*this));
+}
+
+API BigInt::operator unsigned char() const {
+	if (!_sign) return 0;
+	if (*this > BigInt(UCHAR_MAX)) {
+		return UCHAR_MAX;
+	}
+	return unsigned char(unsigned long(*this));
 }
 
 namespace std {

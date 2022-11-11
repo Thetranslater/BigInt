@@ -1,3 +1,3 @@
 #pragma once
-#include<src/BigInt.h>
+#include<src/BigInt_impl.h>
 #include<src/Util.h>

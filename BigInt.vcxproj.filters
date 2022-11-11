@@ -11,18 +11,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\BigInt.h">
+    <ClInclude Include="src\BigInt_impl.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="src\Util.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="include\include.h">
+    <ClInclude Include="include\BigInt.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\BigInt.cpp">
+    <ClCompile Include="src\BigInt_impl.cpp">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Util.cpp">
