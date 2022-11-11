@@ -176,6 +176,6 @@ API BigInt::BigInt(const Int& in) {
 namespace std {
 	template<>
 	struct hash<BigInt> {
-		std::size_t operator()(const BigInt& bInt);
+		std::size_t operator()(const BigInt& bInt) const ;
 	};
 }
